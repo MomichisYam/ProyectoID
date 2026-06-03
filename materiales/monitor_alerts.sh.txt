@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# Archivos
+SOURCE="/var/ossec/logs/alerts/alerts.json"
+DEST="/media/sf_data/alerts.json"
+
+# Monitorear y copiar cuando cambie
+while true; do
+    inotifywait -e modify "$SOURCE" 2>/dev/null
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Archivo modificado, copiando a $DEST"
+    cp "$SOURCE" "$DEST"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Copia completada"
+done

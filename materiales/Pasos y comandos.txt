@@ -1,0 +1,64 @@
+# Configuración de red de Jeshua jeje
+# Kali generador de logs: NAT eth0 y red interna eth1 192.168.56.5
+# Kali atacante: NAT eth0 y red interna eth1 192.168.56.7
+# En esta carpeta les dejo los conf de Snort y OSSEC y el Script para que se pasen los logs a la 
+# carpeta compartida, en el script le cambian la ruta
+
+# SNORT
+
+# Ejecutar Snort en Kali (Red interna debe ser eth1 y puede tardar o hay que ejecutarla dos veces)
+# Cambien la ruta de al final por la de su carpeta compartida en el proyecto, pero que sea en data
+
+sudo snort -c /etc/snort/snort.lua -i eth1 -A json -l /media/sf_data/ &
+
+# En otra terminal 
+
+sudo tail -f /media/sf_data/alert_json.txt
+
+# Probar ping, nmap y ssh.
+
+# Ping:
+
+ping 192.168.56.5
+
+# nmap 
+
+sudo nmap -sS 192.168.56.5
+
+# SSH
+
+sudo apt install hydra -y
+
+mkdir Desktop/hydraSSH
+
+cd Desktop/hydraSSH
+
+# Crear archivo con nombres de usuario y contraseñas (Ahi llenenlos de algo)
+nano users.txt
+
+nano users.txt
+
+# Hacer el SSH 
+hydra -L users.txt -P passwords.txt -t 1 ssh://192.168.56.5
+
+
+# OSSEC
+
+
+# Iniciar OSSEC
+/var/ossec/bin/ossec-control start
+
+# Instalar inotify
+sudo apt-get install inotify-tools
+
+# Crean o copian el script jeje
+
+# Dar permisos de ejecución al Script
+sudo chmod +x /usr/local/bin/monitor_alerts.sh
+
+# Ejecutamos antes de abrir terminal y fallar inicios de sesión como sudo en otra terminal
+sudo nano /usr/local/bin/monitor_alerts.sh
+
+
+
+

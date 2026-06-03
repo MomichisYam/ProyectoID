@@ -1,0 +1,25 @@
+# $Id: local.rules,v 1.11 2004/07/23 20:15:44 bmc Exp $
+# ----------------
+# LOCAL RULES
+# ----------------
+# This file intentionally does not come with signatures.  Put your local
+# additions here.
+
+# 1. Detectar ping (ICMP)
+alert icmp any any -> $HOME_NET any (msg:"ICMP Ping Detectado"; sid:1000001; rev:1;)
+
+# 2. Detectar peticiones HTTP GET
+alert http any any -> $HOME_NET any (msg:"POSIBLE ACTIVIDAD HTTP DETECTADA"; http_method; content:"GET"; sid:1000004; rev:1;)
+
+# 3. Detectar POST en formularios
+alert http any any -> $HOME_NET any (msg:"POST HTTP DETECTADO"; http_method; content:"POST"; sid:1000005; rev:1;)
+
+# 4. Detectar SCAN de puertos - VERSIÓN SNORT 3 (sin threshold)
+# Para rate limiting en Snort 3 se usa en la configuración global
+alert tcp any any -> $HOME_NET 1:1024 (msg:"POSIBLE PORT SCAN DETECTADO"; flags:S; sid:1000006; rev:1;)
+
+# 5. Detectar múltiples conexiones (más simple)
+alert tcp any any -> $HOME_NET any (msg:"MULTIPLES CONEXIONES DETECTADAS"; flow:stateless; sid:1000007; rev:1;)
+
+# 6. SSH FuerzaA bruta
+alert tcp any any -> $HOME_NET 22 (msg:"POSIBLE SSH BRUTE FORCE"; flow:to_server,established; sid:1000008; rev:1;)
