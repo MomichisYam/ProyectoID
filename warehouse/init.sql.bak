@@ -1,0 +1,24 @@
+-- Crear tabla de alertas
+CREATE TABLE IF NOT EXISTS security_alerts (
+    id SERIAL PRIMARY KEY,
+    source VARCHAR(20),
+    alert_timestamp TIMESTAMP,
+    severity VARCHAR(20),
+    rule_id VARCHAR(50),
+    src_ip VARCHAR(45),
+    dst_ip VARCHAR(45),
+    message TEXT,
+    raw_json JSONB,  -- ← JSONB es tipo nativo, no extensión
+    ingested_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Crear índices para búsquedas rápidas
+CREATE INDEX IF NOT EXISTS idx_src_ip ON security_alerts(src_ip);
+CREATE INDEX IF NOT EXISTS idx_timestamp ON security_alerts(alert_timestamp);
+CREATE INDEX IF NOT EXISTS idx_severity ON security_alerts(severity);
+
+-- Mensaje de confirmación
+DO $$
+BEGIN
+    RAISE NOTICE 'Tabla security_alerts creada exitosamente';
+END $$;
