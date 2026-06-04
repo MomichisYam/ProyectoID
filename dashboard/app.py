@@ -231,21 +231,21 @@ def fetch(query: str) -> pd.DataFrame:
 
 # ── SIDEBAR ───────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("### 🛡️ Infraestructura SOC")
+    st.markdown("### Infraestructura SOC")
     st.caption("Arquitectura Kappa · Data Lakehouse activo")
     st.divider()
 
-    st.markdown("**🗄️ Data Lakehouse (MinIO)**")
+    st.markdown("**Data Lakehouse (MinIO)**")
     st.info("Logs JSON respaldados automáticamente en el bucket `datalake`.")
     st.link_button("Abrir consola MinIO", "http://localhost:9001",
                    use_container_width=True)
 
     st.divider()
-    st.markdown("**📡 Mensajería (Kafka)**")
+    st.markdown("**Mensajería (Kafka)**")
     st.success("Tópico activo: `sec-alerts`")
 
     st.divider()
-    st.markdown("**🗃️ Data Warehouse (PostgreSQL)**")
+    st.markdown("**Data Warehouse (PostgreSQL)**")
     st.success("Base de datos: `security_warehouse`")
 
     st.divider()
@@ -534,9 +534,9 @@ while True:
 
         # ── FILA 4: TABS ──────────────────────────────────────────────────────
         tab_red, tab_host, tab_rollup = st.tabs([
-            "🌐 Red (Snort) — OLAP",
-            "💻 Host (OSSEC) — OLAP",
-            "📊 Cubo ROLLUP",
+            "Red (Snort) — OLAP",
+            "Host (OSSEC) — OLAP",
+            "Cubo ROLLUP",
         ])
 
         with tab_red:
