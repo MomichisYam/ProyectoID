@@ -62,4 +62,10 @@ docker-compose up -d
 - Para que la pagina muestre algo, debemos tener registros en los archivos 
 alert_json.txt y alerts.json
 
+# Ver datos en PostgreSQL
+docker exec -it postgres_warehouse psql -U admin -d security_warehouse
+
+# Ver cuántas alertas de cada fuente hay
+SELECT source, COUNT(*) FROM security_alerts GROUP BY source;
+
 
