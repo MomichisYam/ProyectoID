@@ -1,0 +1,90 @@
+========================================================================
+GUÍA DEFINITIVA: DESPLIEGUE DEL SOC DASHBOARD (ARQUITECTURA KAPPA)
+========================================================================
+Nota: Asegúrate de haber hecho un 'git pull' o tener la última versión 
+del código antes de empezar, ya que incluye mejoras en el Consumer, 
+Producer, Dashboard y los scripts de OSSEC.
+
+------------------------------------------------------------------------
+PASO 1: LIMPIEZA Y LEVANTAMIENTO DE LA INFRAESTRUCTURA (DOCKER)
+------------------------------------------------------------------------
+1. Abre una terminal y colócate en la raíz del proyecto (donde está el docker-compose.yml).
+2. Si tenías contenedores viejos corriendo, bájarlos y limpia la memoria:
+   docker-compose down
+   docker volume rm proyectoid_producer_state
+
+3. Levanta toda la infraestructura forzando la construcción de las nuevas imágenes:
+   docker-compose up -d --build
+
+4. Verifica que todos los contenedores estén sanos (healthy):
+   docker ps
+
+
+------------------------------------------------------------------------
+PASO 2: CONFIGURACIÓN DE SEGURIDAD DE HOST (OSSEC)
+------------------------------------------------------------------------
+1. Aplica la configuración personalizada del proyecto a OSSEC:
+   sudo cp materiales/ossec.conf.txt /var/ossec/etc/ossec.conf
+
+2. Dale permisos de ejecución al script puente:
+   sudo chmod +x materiales/monitor_alerts.sh.txt
+
+3. Reinicia OSSEC para que lea los cambios:
+   sudo /var/ossec/bin/ossec-control restart
+
+4. IMPORTANTE: Ejecuta el script puente ESTANDO EN LA RAÍZ DEL PROYECTO 
+   (El script descubrirá la ruta automáticamente):
+   sudo ./materiales/monitor_alerts.sh.txt &
+
+
+------------------------------------------------------------------------
+PASO 3: CONFIGURACIÓN DE SEGURIDAD DE RED (SNORT)
+------------------------------------------------------------------------
+1. Verifica qué interfaz de red está conectada a la red interna (suele ser eth0 o eth1):
+   ip a
+
+2. Obtén la ruta absoluta de la carpeta "data" de tu proyecto:
+   pwd
+   (Copia la ruta que te arroje, ej: /home/kali/Desktop/ProyectoID)
+
+3. Ejecuta Snort cambiando "ethX" por tu interfaz, y pon la ruta que 
+   copiaste agregándole "/data/" al final:
+   
+   sudo snort -c /etc/snort/snort.lua -i eth0 -A json -l /RUTADE/TUPROYECTO/data/ &
+
+
+------------------------------------------------------------------------
+PASO 4: PRUEBAS DE ESTRÉS Y GENERACIÓN DE ALERTAS
+------------------------------------------------------------------------
+Para ver el dashboard en acción, abre una terminal en la máquina atacante 
+o en el mismo Kali y genera los siguientes ataques:
+
+-- PRUEBAS DE RED (Detectadas por Snort) --
+1. Escaneo de puertos silencioso (Cambia la IP por la de tu Kali):
+   sudo nmap -sS 192.168.56.X
+
+2. Fuerza bruta por SSH:
+   hydra -L users.txt -P passwords.txt -t 1 ssh://192.168.56.X
+
+-- PRUEBAS LOCALES (Detectadas por OSSEC) --
+3. Intentos de escalada de privilegios fallidos:
+   Escribe "sudo su" y equivócate en la contraseña 3 veces a propósito.
+
+4. Modificación de archivos del sistema:
+   sudo touch /etc/archivo_hackeado.txt
+
+
+------------------------------------------------------------------------
+PASO 5: VISUALIZACIÓN DE DATOS
+------------------------------------------------------------------------
+1. SOC Dashboard (Tiempo Real):
+   Abre en tu navegador -> http://localhost:8501
+
+2. Data Lake (MinIO - Respaldos crudos):
+   Abre en tu navegador -> http://localhost:9001
+   Usuario: admin
+   Contraseña: adminpassword
+
+3. Logs en vivo (Para debugging del Producer/Consumer):
+   docker logs -f producer
+   docker logs -f consumer

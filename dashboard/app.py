@@ -218,15 +218,20 @@ PLOTLY_LAYOUT = dict(
 # ── CONEXIÓN ──────────────────────────────────────────────────────────────────
 @st.cache_resource
 def get_connection():
-    return psycopg2.connect(
+    conn = psycopg2.connect(
         host="postgres",
         database="security_warehouse",
         user="admin",
         password="admin123",
+        options="-c timezone=America/Mexico_City"
     )
+    conn.autocommit = True
+    return conn
 
 
 def fetch(query: str) -> pd.DataFrame:
+    conn = get_connection()
+    conn.rollback()
     return pd.read_sql(query, get_connection())
 
 # ── SIDEBAR ───────────────────────────────────────────────────────────────────
@@ -269,9 +274,12 @@ st.divider()
 placeholder = st.empty()
 
 while True:
+    print(f"\n[DEBUG {datetime.now().strftime('%H:%M:%S')}] 🟢 Iniciando nueva iteración del ciclo...")
+    
     with placeholder.container():
 
         # ── FETCH DATA ────────────────────────────────────────────────────────
+        print("[DEBUG] Ejecutando consulta de KPIs...")
         df_kpis = fetch("""
             SELECT
                 COUNT(*) AS total,
@@ -282,8 +290,15 @@ while True:
                       THEN 1 END) AS snort_ultima_hora
             FROM security_alerts;
         """)
+        
+        t_total = int(df_kpis["total"][0])
+        t_red   = int(df_kpis["total_red"][0])
+        t_local = int(df_kpis["total_local"][0])
+        t_hora  = int(df_kpis["snort_ultima_hora"][0])
+        pct_red = round(t_red / t_total * 100) if t_total else 0
+        print(f"[DEBUG] KPIs listos -> Total: {t_total} | Snort: {t_red} | OSSEC: {t_local}")
 
-	# ── CONSULTA DE SEVERIDAD CORREGIDA ──
+        print("[DEBUG] Ejecutando consulta de Severidad...")
         df_sev = fetch("""
             WITH Clasificacion AS (
                 SELECT 
@@ -301,7 +316,9 @@ while True:
             GROUP BY severidad
             ORDER BY total DESC;
         """)
+        print(f"[DEBUG] Severidad lista -> {len(df_sev)} filas recuperadas.")
 
+        print("[DEBUG] Ejecutando consulta de Serie Temporal...")
         df_serie = fetch("""
             SELECT
                 date_trunc('hour', alert_timestamp) AS hora,
@@ -312,7 +329,9 @@ while True:
             GROUP BY hora, source
             ORDER BY hora;
         """)
+        print(f"[DEBUG] Serie Temporal lista -> {len(df_serie)} filas recuperadas.")
 
+        print("[DEBUG] Ejecutando consulta de Cubo ROLLUP...")
         df_cubo = fetch("""
             SELECT
                 COALESCE(source, 'TOTAL GENERAL') AS "Fuente",
@@ -323,7 +342,9 @@ while True:
             GROUP BY ROLLUP(source, date_trunc('hour', alert_timestamp))
             ORDER BY "Fuente", "Ventana" DESC;
         """)
+        print(f"[DEBUG] Cubo ROLLUP listo -> {len(df_cubo)} filas recuperadas.")
 
+        print("[DEBUG] Ejecutando consulta de Red (Snort)...")
         df_red = fetch("""
             WITH IP_Frecuencia AS (
                 SELECT src_ip, COUNT(*) AS frec
@@ -349,7 +370,9 @@ while True:
             ORDER BY s.alert_timestamp DESC
             LIMIT 50;
         """)
+        print(f"[DEBUG] Red (Snort) lista -> {len(df_red)} filas recuperadas.")
 
+        print("[DEBUG] Ejecutando consulta Local (OSSEC)...")
         df_local = fetch("""
             WITH LocalOLAP AS (
                 SELECT
@@ -372,13 +395,9 @@ while True:
             ORDER BY "Timestamp" DESC
             LIMIT 50;
         """)
-        t_total = int(df_kpis["total"][0])
-        t_red   = int(df_kpis["total_red"][0])
-        t_local = int(df_kpis["total_local"][0])
-        t_hora  = int(df_kpis["snort_ultima_hora"][0])
-        pct_red = round(t_red / t_total * 100) if t_total else 0
+        print(f"[DEBUG] Local (OSSEC) lista -> {len(df_local)} filas recuperadas.")
 
-	# ── CÁLCULO DINÁMICO DE MÉTRICAS (Triaje y Críticos) ──
+        print("[DEBUG] Ejecutando consulta de Timers (Triaje)...")
         df_timers = fetch("""
             SELECT 
                 COALESCE(AVG(EXTRACT(EPOCH FROM (ingested_at - alert_timestamp))), 0) AS triage_avg_sec,
@@ -387,14 +406,16 @@ while True:
             WHERE alert_timestamp >= NOW() - INTERVAL '24 hours';
         """)
 
-        # Extraemos y formateamos los valores reales de la BD
         sin_asignar = int(df_timers["criticos_sin_asignar"][0])
         triage_sec = int(df_timers["triage_avg_sec"][0])
 
         t_h = f"{triage_sec // 3600:02d}"
         t_m = f"{(triage_sec % 3600) // 60:02d}"
         t_s = f"{triage_sec % 60:02d}"
-
+        print(f"[DEBUG] Timers listos -> Triaje promedio: {triage_sec} seg | Críticos: {sin_asignar}")
+        
+        print("[DEBUG] 🎨 Renderizando UI de Streamlit...")
+        
         # ── FILA 1: KPIs ──────────────────────────────────────────────────────
         c1, c2, c3, c4 = st.columns(4)
         with c1:
@@ -428,8 +449,7 @@ while True:
 
         st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
 
-	# ── FILA 2: TIMERS ────────────────────────────────────────────────────
-        # Dividimos en 4 columnas para que el ancho coincida perfecto con la fila superior
+        # ── FILA 2: TIMERS ────────────────────────────────────────────────────
         t1, t2, t3, t4 = st.columns(4)
         
         with t1:
@@ -613,5 +633,6 @@ while True:
                 )
             else:
                 st.info("Sin datos en el cubo OLAP.")
-
+    
+    print("[DEBUG] 🛑 Fin de la iteración. Durmiendo 3 segundos...\n")
     time.sleep(3)
