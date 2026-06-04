@@ -44,6 +44,7 @@ sudo chmod +x /usr/local/bin/monitor_alerts.sh
 - Ejecutamos antes de abrir terminal y fallar inicios de sesión como sudo en otra terminal
 sudo nano /usr/local/bin/monitor_alerts.sh
 
+
 # MINION (MinIO)
 - USUARIO, CONTRASEÑA Y DIRECCIÓN PARA VER LA INTERFAZ DE MinIO
 http://localhost:9001 (Despues de levantar el contenedor de minIO)

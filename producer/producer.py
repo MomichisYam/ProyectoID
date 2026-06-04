@@ -180,6 +180,11 @@ class StreamingProducer:
         
         try:
             while True:
+                try:
+                    os.listdir(DATA_DIR)
+                except Exception as e:
+                    print(f" Error al refrescar el directorio compartido: {e}")
+
                 for filename, source_type in FILES_TO_WATCH.items():
                     filepath = os.path.join(DATA_DIR, filename)
                     
