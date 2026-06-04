@@ -2,10 +2,26 @@ import json
 import os
 import time
 import sys
+import io
+from minio import Minio
 from kafka import KafkaProducer
 from datetime import datetime
 
 # Configuracion
+# Configuración MinIO
+MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "minio:9000")
+minio_client = Minio(
+    MINIO_ENDPOINT,
+    access_key="admin",
+    secret_key="adminpassword",
+    secure=False
+)
+
+# Crear bucket para el Data Lake si no existe
+if not minio_client.bucket_exists("datalake"):
+    minio_client.make_bucket("datalake")
+    print("Bucket 'datalake' creado en MinIO")
+
 KAFKA_BROKER = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
 TOPIC = os.getenv("TOPIC", "sec-alerts")
 DATA_DIR = "/data"
@@ -83,6 +99,7 @@ class StreamingProducer:
             current_pos = 0
         
         lines_sent = 0
+        raw_lines_buffer = []
         
         with open(filepath, 'r', encoding='utf-8') as f:
             f.seek(current_pos)
@@ -91,6 +108,9 @@ class StreamingProducer:
                 line = line.strip()
                 if not line:
                     continue
+
+                # Se guarda la linea cruda para almacenamiento en MinIO
+                raw_lines_buffer.append(line)
                 
                 try:
                     # Parsear JSON
@@ -110,6 +130,10 @@ class StreamingProducer:
                 except Exception as e:
                     print(f"   Error enviando: {e}")
             
+            # Subir a MinIO si hubo líneas nuevas
+            if raw_lines_buffer:
+                self.upload_to_minio(source_type, raw_lines_buffer)
+
             # Actualizar posicion
             new_pos = f.tell()
             self.update_file_position(filepath, new_pos)
@@ -118,6 +142,29 @@ class StreamingProducer:
             print(f"   {source_type}: {lines_sent} nuevas alertas (posicion: {new_pos})")
         
         return lines_sent
+
+    def upload_to_minio(self, source_type, lines_buffer):
+        """Sube un bloque de logs crudos a MinIO organizados por fecha"""
+        try:
+            date_str = datetime.now().strftime("%Y/%m/%d")
+            timestamp = datetime.now().strftime("%H%M%S")
+            # Esto genera una ruta tipo: ossec/2026/06/03/raw_logs_171547.json
+            object_name = f"{source_type}/{date_str}/raw_logs_{timestamp}.json"
+            
+            # Convertir la lista de strings a un flujo de bytes
+            raw_data = "\n".join(lines_buffer).encode('utf-8')
+            raw_stream = io.BytesIO(raw_data)
+            
+            minio_client.put_object(
+                "datalake",
+                object_name,
+                data=raw_stream,
+                length=len(raw_data),
+                content_type="application/json"
+            )
+            print(f"   [Data Lake] {len(lines_buffer)} logs crudos subidos a MinIO: {object_name}")
+        except Exception as e:
+            print(f"   [Error Data Lake] No se pudo subir a MinIO: {e}")
     
     def run(self):
         """Bucle principal de monitoreo"""

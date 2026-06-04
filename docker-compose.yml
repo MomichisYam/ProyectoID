@@ -55,6 +55,27 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # MinIO sirve para almacenar los archivos de la data lake, 
+  # especialmente los raw que se generan a partir de los 
+  # alertas procesados por el consumer. 
+
+  # Es una alternativa a usar un sistema de archivos local o 
+  # un servicio en la nube como AWS S3, pero con la ventaja 
+  # de ser fácil de desplegar y gestionar en un entorno local o de desarrollo.
+  minio:
+    image: minio/minio:latest
+    container_name: minio_lake
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: adminpassword
+    ports:
+      - "9000:9000" # Puerto para la API (donde se conecta Python)
+      - "9001:9001" # Puerto para la consola web
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    restart: unless-stopped
+
   consumer:
     build: ./consumer
     container_name: consumer
@@ -94,3 +115,4 @@ services:
 volumes:
   postgres_data:
   producer_state:  # Nuevo volumen para mantener el estado
+  minio_data:
