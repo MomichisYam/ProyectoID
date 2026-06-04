@@ -55,13 +55,6 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # MinIO sirve para almacenar los archivos de la data lake, 
-  # especialmente los raw que se generan a partir de los 
-  # alertas procesados por el consumer. 
-
-  # Es una alternativa a usar un sistema de archivos local o 
-  # un servicio en la nube como AWS S3, pero con la ventaja 
-  # de ser fácil de desplegar y gestionar en un entorno local o de desarrollo.
   minio:
     image: minio/minio:latest
     container_name: minio_lake
@@ -69,8 +62,8 @@ services:
       MINIO_ROOT_USER: admin
       MINIO_ROOT_PASSWORD: adminpassword
     ports:
-      - "9000:9000" # Puerto para la API (donde se conecta Python)
-      - "9001:9001" # Puerto para la consola web
+      - "9000:9000"
+      - "9001:9001"
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
@@ -105,14 +98,28 @@ services:
     volumes:
       - ./data:/data
       - ./datalake/raw:/datalake/raw
-      - producer_state:/tmp  # Para guardar la posición de lectura
+      - producer_state:/tmp
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       TOPIC: sec-alerts
-    restart: unless-stopped  #  Producer siempre corriendo
+    restart: unless-stopped
     command: sh -c "sleep 10 && python producer.py"
+
+  dashboard:
+    build: ./dashboard
+    container_name: dashboard
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./dashboard:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://admin:admin123@postgres:5432/security_warehouse
+    restart: unless-stopped
 
 volumes:
   postgres_data:
-  producer_state:  # Nuevo volumen para mantener el estado
+  producer_state:
   minio_data:

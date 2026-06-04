@@ -219,7 +219,7 @@ PLOTLY_LAYOUT = dict(
 @st.cache_resource
 def get_connection():
     return psycopg2.connect(
-        host="localhost",
+        host="postgres",
         database="security_warehouse",
         user="admin",
         password="admin123",
